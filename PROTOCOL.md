@@ -297,7 +297,8 @@ Macro action playback modes:
 Storage:
 
 - Command: `08/88`.
-- Selector: macro slot `0..255`.
+- Selector: one-byte macro slot (`0..255` on the wire); actual device slot capacity is not established.
+- The browser allocates the lowest slot not referenced by another action across both layers and banks. Physical key order does not determine the slot.
 - Address: byte offset in the stream.
 - Chunk size: up to 32 bytes.
 - Maximum total stream: 512 bytes.

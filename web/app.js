@@ -566,7 +566,7 @@ function openActionDialog(control) {
     layer: state.layer,
     kind,
     events: cloneProfile(macro?.events ?? []),
-    repeat: macro?.repeat ?? 1,
+    repeat: macro?.events?.length ? macro.repeat : 1,
     mode: decoded.kind === "macro" ? decoded.mode : 0,
   };
   $("#actionLayerLabel").textContent = state.layer === "normal" ? "Normal layer" : "Fn layer";
@@ -765,7 +765,7 @@ function saveAction() {
     else if (kind === "special") record = bytesFromHex($("#specialAction").value, 4);
     else if (kind === "raw") record = bytesFromHex($("#rawAction").value, 4);
     else {
-      const slot = macroSlotFor(layer, control);
+      const slot = macroSlotFor(state.profile, layer, control);
       const mode = Number($("#macroMode").value);
       const repeat = Number($("#macroRepeat").value);
       encodeMacro(state.editing.events, repeat);

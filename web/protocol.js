@@ -947,10 +947,26 @@ export async function writePowerSetting(transport, profile, field) {
   assertReadback(value, await transport.query(0x82, selector, 0, value.length), field === "sleepSeconds" ? "Sleep timeout" : "Power-down timeout");
 }
 
-export function macroSlotFor(layer, control) {
-  const index = ALL_CONTROLS.findIndex((item) => item.id === control.id && item.bank === control.bank);
-  if (index < 0) throw new Error("Unknown W910 control");
-  return index + (layer === "fn" ? ALL_CONTROLS.length : 0);
+export function macroSlotFor(profile, layer, control) {
+  if (!["normal", "fn"].includes(layer)) throw new Error("Unknown W910 layer");
+  if (!ALL_CONTROLS.some((item) => item.id === control.id && item.bank === control.bank && item.index === control.index)) {
+    throw new Error("Unknown W910 control");
+  }
+  const used = new Set();
+  for (const otherLayer of ["normal", "fn"]) {
+    for (const bank of ["main", "scroll"]) {
+      profile.banks[otherLayer][bank].forEach((record, index) => {
+        if (otherLayer === layer && bank === control.bank && index === control.index) return;
+        if (record[0] === 0x0a) used.add(record[2]);
+      });
+    }
+  }
+  // The selector is one byte, but that does not establish device capacity.
+  // Keep allocations compact instead of assigning a slot by physical key order.
+  for (let slot = 0; slot <= 0xff; slot += 1) {
+    if (!used.has(slot)) return slot;
+  }
+  throw new Error("No free macro slot; remove an existing macro assignment first");
 }
 
 export function getControlRecord(profile, layer, control) {
@@ -959,7 +975,12 @@ export function getControlRecord(profile, layer, control) {
 
 export function setControlRecord(profile, layer, control, record) {
   if (record.length !== ACTION_SIZE) throw new Error("Action records are four bytes");
+  const previous = getControlRecord(profile, layer, control);
   profile.banks[layer][control.bank][control.index] = Array.from(record);
+  if (previous[0] === 0x0a && !["normal", "fn"].some((name) =>
+    ["main", "scroll"].some((bank) => profile.banks[name][bank].some((action) => action[0] === 0x0a && action[2] === previous[2])))) {
+    delete profile.macros[previous[2]];
+  }
 }
 
 export function validateProfile(profile) {
